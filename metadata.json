@@ -1,0 +1,5 @@
+{
+  "name": "AI 블로그 포스트 생성기",
+  "description": "CSV 파일을 업로드하여 여러 블로그 주제에 대한 글을 한번에 생성하고, 결과를 다시 CSV 파일로 다운로드할 수 있는 AI 기반 웹 애플리케이션입니다.",
+  "requestFramePermissions": []
+}
