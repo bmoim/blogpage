@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { ReactNode } from 'react';
 
@@ -6,7 +5,7 @@ interface ButtonProps {
   onClick: () => void;
   children: ReactNode;
   disabled?: boolean;
-  variant?: 'primary' | 'secondary';
+  variant?: 'primary' | 'secondary' | 'danger';
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -20,6 +19,7 @@ const Button: React.FC<ButtonProps> = ({
   const variantStyles = {
     primary: `text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 focus:ring-purple-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100`,
     secondary: `text-gray-200 bg-gray-700 hover:bg-gray-600 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100`,
+    danger: `text-white bg-red-600 hover:bg-red-700 focus:ring-red-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100`,
   };
 
   return (

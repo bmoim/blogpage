@@ -20,7 +20,7 @@ const CopyCodeBox: React.FC<{ htmlContent: string; title: string }> = ({ htmlCon
   };
 
   return (
-    <div className="bg-gray-900 border border-gray-700 rounded-lg mb-4">
+    <div className="bg-gray-900 border border-gray-700 rounded-lg">
       <div className="flex justify-between items-center p-3 bg-gray-800 border-b border-gray-700">
         <h3 className="font-mono text-sm text-gray-400">{title}</h3>
         <button
@@ -39,6 +39,19 @@ const CopyCodeBox: React.FC<{ htmlContent: string; title: string }> = ({ htmlCon
   );
 };
 
+// Component to display a single result
+const ResultItem: React.FC<{ result: BlogPostResult }> = ({ result }) => {
+    return (
+        <div className="bg-gray-900 border border-gray-700 rounded-xl p-6">
+            <h2 className="text-xl font-bold text-purple-400 mb-4">주제: {result.topic}</h2>
+            <CopyCodeBox 
+                htmlContent={result.blogPost}
+                title="블로그 글 전체 HTML"
+            />
+        </div>
+    );
+};
+
 
 const App: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -46,7 +59,10 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [wasCancelled, setWasCancelled] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isCancelledRef = useRef<boolean>(false);
+
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -70,7 +86,9 @@ const App: React.FC = () => {
       setError('먼저 CSV 파일을 선택해주세요.');
       return;
     }
-
+    
+    isCancelledRef.current = false;
+    setWasCancelled(false);
     setIsLoading(true);
     setError(null);
     setResults([]);
@@ -119,6 +137,10 @@ const App: React.FC = () => {
 
               const generatedResults: BlogPostResult[] = [];
               for (let i = 0; i < topics.length; i++) {
+                if (isCancelledRef.current) {
+                  setWasCancelled(true);
+                  break;
+                }
                 const topic = topics[i];
                 try {
                   const blogPost = await generateBlogPost(topic);
@@ -152,6 +174,10 @@ const App: React.FC = () => {
     reader.readAsText(file, 'EUC-KR');
 
   }, [file]);
+  
+  const handleCancel = () => {
+    isCancelledRef.current = true;
+  };
 
   const handleDownload = () => {
     if (results.length === 0) return;
@@ -181,27 +207,9 @@ const App: React.FC = () => {
     setIsLoading(false);
     setError(null);
     setProgress({ current: 0, total: 0 });
+    setWasCancelled(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
-    }
-  };
-
-  const parseHtmlContent = (html: string): string[] => {
-    if (typeof DOMParser === 'undefined') {
-        return [html];
-    }
-    try {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        const boxes = doc.querySelectorAll('.copy-code-box');
-        if (boxes.length === 0) {
-            // Fallback if AI didn't create the boxes, or for error messages
-            return [html];
-        }
-        return Array.from(boxes).map(box => box.innerHTML.trim());
-    } catch (e) {
-        console.error("HTML parsing error:", e);
-        return [html];
     }
   };
 
@@ -224,9 +232,16 @@ const App: React.FC = () => {
             {results.length > 0 && !isLoading ? (
                 <div className="w-full">
                   <div className="text-center mb-8">
-                      <Icon name="check" className="w-16 h-16 text-green-400 mx-auto mb-4" />
-                      <h2 className="text-2xl font-semibold mb-2 text-white">생성 완료!</h2>
-                      <p className="text-gray-400 mb-6">{results.length}개의 블로그 글이 성공적으로 생성되었습니다.</p>
+                      <Icon name={wasCancelled ? "stop" : "check"} className={`w-16 h-16 mx-auto mb-4 ${wasCancelled ? 'text-yellow-400' : 'text-green-400'}`} />
+                      <h2 className="text-2xl font-semibold mb-2 text-white">
+                         {wasCancelled ? "생성 중지됨" : "생성 완료!"}
+                      </h2>
+                      <p className="text-gray-400 mb-6">
+                        {wasCancelled
+                          ? `${results.length}개의 글이 생성된 후 중지되었습니다.`
+                          : `${results.length}개의 블로그 글이 성공적으로 생성되었습니다.`
+                        }
+                      </p>
                       <div className="flex justify-center gap-4">
                           <Button onClick={handleDownload} variant="primary">
                               <Icon name="download" className="w-5 h-5 mr-2" />
@@ -241,17 +256,7 @@ const App: React.FC = () => {
 
                   <div className="space-y-8 mt-8">
                     {results.map((result, index) => (
-                      <div key={index} className="bg-gray-900 border border-gray-700 rounded-xl p-6">
-                        <h2 className="text-xl font-bold text-purple-400 mb-4">주제: {result.topic}</h2>
-                        
-                        {parseHtmlContent(result.blogPost).map((content, boxIndex) => (
-                          <CopyCodeBox 
-                            key={boxIndex}
-                            htmlContent={content}
-                            title={`Part ${boxIndex + 1}`}
-                          />
-                        ))}
-                      </div>
+                      <ResultItem key={index} result={result} />
                     ))}
                   </div>
                 </div>
@@ -265,6 +270,12 @@ const App: React.FC = () => {
                             className="bg-purple-500 h-2.5 rounded-full transition-all duration-300" 
                             style={{ width: `${progress.total > 0 ? (progress.current / progress.total) * 100 : 0}%` }}>
                         </div>
+                    </div>
+                     <div className="mt-8">
+                        <Button onClick={handleCancel} variant="danger">
+                            <Icon name="stop" className="w-5 h-5 mr-2" />
+                            생성 중지
+                        </Button>
                     </div>
                 </div>
             ) : (
